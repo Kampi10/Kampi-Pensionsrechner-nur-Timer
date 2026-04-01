@@ -1,1 +1,199 @@
-<!DOCTYPE html><html><body>Pension App</body></html>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pension Countdown</title>
+
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#020617">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+<style>
+body{
+background:#020617;
+color:#e2e8f0;
+font-family:-apple-system,BlinkMacSystemFont,"Segoe UI";
+text-align:center;
+padding:20px;
+}
+.container{max-width:1000px;margin:auto;}
+h1{font-size:34px}
+.workcounter{font-size:26px;color:#ef4444;font-weight:bold;margin:15px 0;}
+.realcounter{font-size:24px;color:#3b82f6;font-weight:bold;margin:15px 0;}
+.card{background:#0f172a;border-radius:16px;padding:20px;margin:18px 0;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;}
+.box{background:#020617;padding:14px;border-radius:10px;font-size:14px;}
+.diff{color:#3b82f6;font-weight:bold;}
+</style>
+</head>
+
+<body>
+<div class="container">
+<h1>Pension Countdown</h1>
+
+<select id="profile"></select><br><br>
+<select id="target"></select>
+
+<div id="results"></div>
+</div>
+
+<script>
+
+const VACATION_PER_YEAR = 33
+
+const profiles={
+horst:{
+birth:new Date("1966-12-18"),
+targets:["2029-01-01","2029-04-01","2030-01-01","2030-04-01","2032-01-01"]
+},
+silvia:{
+birth:new Date("1967-12-23"),
+targets:["2030-04-01","2030-06-01","2031-01-01","2032-01-01","2033-01-01"]
+}
+}
+
+const SILVIA_FIRST=new Date("2030-04-01")
+const HORST_FIRST=new Date("2029-01-01")
+
+let intervals=[]
+
+function clearIntervals(){
+intervals.forEach(i=>clearInterval(i))
+intervals=[]
+}
+
+function formatTime(sec){
+sec=Math.max(0,sec)
+let s=sec%60
+let m=Math.floor(sec/60)%60
+let h=Math.floor(sec/3600)%24
+let d=Math.floor(sec/86400)
+let y=Math.floor(d/365); d%=365
+return y+" Jahre "+d+" Tage "+h+" Stunden "+m+" Minuten "+s+" Sekunden"
+}
+
+function calculateAgeDetailed(birth, target){
+let years = target.getFullYear() - birth.getFullYear()
+let months = target.getMonth() - birth.getMonth()
+if(target.getDate() < birth.getDate()) months--
+if(months < 0){ years--; months += 12 }
+return {years, months}
+}
+
+function holidays(y){
+return [
+y+"-01-01",y+"-01-06",y+"-05-01",
+y+"-08-15",y+"-10-26",y+"-11-01",
+y+"-12-08",y+"-12-25",y+"-12-26"
+]
+}
+
+function isHoliday(d){
+return holidays(d.getFullYear()).includes(d.toISOString().split("T")[0])
+}
+
+function workdays(now,end){
+let d=new Date(now)
+let total=0, weekend=0, holiday=0
+
+while(d<end){
+let day=d.getDay()
+if(day===0||day===6) weekend++
+else if(isHoliday(d)) holiday++
+total++
+d.setDate(d.getDate()+1)
+}
+
+let years = total / 365
+let vacation = Math.floor(years * VACATION_PER_YEAR)
+
+let work = total - weekend - holiday - vacation
+if(work < 0) work = 0
+
+return {w: work, we: Math.floor(weekend/2), h: holiday, vac: vacation}
+}
+
+function update(){
+
+clearIntervals()
+
+let pKey=document.getElementById("profile").value
+let p=profiles[pKey]
+let i=document.getElementById("target").value||0
+
+let end=new Date(p.targets[i])
+let now=new Date()
+
+let ws=workdays(now,end)
+let age = calculateAgeDetailed(p.birth, end)
+
+let ref=(pKey==="horst")?SILVIA_FIRST:HORST_FIRST
+let refText=(pKey==="horst")?"Unterschied zu Silvia":"Unterschied zu Horst"
+
+document.getElementById("results").innerHTML=
+"<div class='card'>"+
+"<h3>Pension "+end.toLocaleDateString("de-AT")+"</h3>"+
+"<div class='box'>Alter bei Pension<br>"+age.years+" Jahre "+age.months+" Monate</div>"+
+
+"<div class='workcounter'>Arbeitszeit Countdown</div><div id='work' class='workcounter'></div>"+
+"<div class='realcounter'>Zeit bis Pension</div><div id='real' class='realcounter'></div>"+
+
+"<div class='grid'>"+
+"<div class='box'>Wochenenden<br>"+ws.we+"</div>"+
+"<div class='box'>Feiertage<br>"+ws.h+"</div>"+
+"<div class='box'>Urlaubstage<br>"+ws.vac+"</div>"+
+"<div class='box diff'>"+refText+"<br>"+formatTime(Math.abs(end-ref)/1000)+"</div>"+
+"</div></div>"
+
+let workSec=ws.w*86400
+
+intervals.push(setInterval(()=>{
+workSec--
+document.getElementById("work").innerHTML=formatTime(workSec)
+},1000))
+
+intervals.push(setInterval(()=>{
+let s=Math.floor((end-new Date())/1000)
+document.getElementById("real").innerHTML=formatTime(s)
+},1000))
+}
+
+function init(){
+
+let pSel=document.getElementById("profile")
+let tSel=document.getElementById("target")
+
+Object.keys(profiles).forEach(k=>{
+let o=document.createElement("option")
+o.value=k
+o.textContent=k.charAt(0).toUpperCase()+k.slice(1)
+pSel.appendChild(o)
+})
+
+pSel.value="horst"
+
+function loadTargets(){
+tSel.innerHTML=""
+profiles[pSel.value].targets.forEach((t,i)=>{
+let o=document.createElement("option")
+o.value=i
+o.textContent=new Date(t).toLocaleDateString("de-AT")
+tSel.appendChild(o)
+})
+}
+
+pSel.onchange=()=>{loadTargets();update()}
+tSel.onchange=update
+
+loadTargets()
+update()
+}
+
+init()
+
+</script>
+
+</body>
+</html>
