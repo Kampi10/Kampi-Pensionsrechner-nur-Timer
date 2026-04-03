@@ -3,197 +3,171 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pension Countdown</title>
-
+<title>Horst Ereignisse 2026</title>
 <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#020617">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-
 <style>
-body{
-background:#020617;
-color:#e2e8f0;
-font-family:-apple-system,BlinkMacSystemFont,"Segoe UI";
-text-align:center;
-padding:20px;
-}
-.container{max-width:1000px;margin:auto;}
-h1{font-size:34px}
-.workcounter{font-size:26px;color:#ef4444;font-weight:bold;margin:15px 0;}
-.realcounter{font-size:24px;color:#3b82f6;font-weight:bold;margin:15px 0;}
-.card{background:#0f172a;border-radius:16px;padding:20px;margin:18px 0;}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px;}
-.box{background:#020617;padding:14px;border-radius:10px;font-size:14px;}
-.diff{color:#3b82f6;font-weight:bold;}
+body {font-family: system-ui, Arial; margin:0; background:#0f172a; color:white;}
+header {text-align:center; padding:20px; font-size:26px;}
+.grid {display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:20px; padding:20px;}
+.card {background:#111827; border-radius:20px; padding:20px; text-align:center; transition:.3s;}
+.card.next {border:2px solid #22c55e; transform:scale(1.03);}
+.card.warning {border:2px solid #ef4444; animation:pulse 1s infinite;}
+.card.birthday {border:3px solid gold; box-shadow:0 0 20px gold;}
+.card.pension {border:3px solid #38bdf8; box-shadow:0 0 25px #38bdf8;}
+@keyframes pulse {0%{box-shadow:0 0 0px #ef4444;}50%{box-shadow:0 0 15px #ef4444;}100%{box-shadow:0 0 0px #ef4444;}}
+.title {font-size:16px; margin-bottom:5px; opacity:.8;}
+.datetime {font-size:13px; opacity:0.6; margin-bottom:10px;}
+.emoji {font-size:28px; margin-bottom:10px;}
+.digital {font-size:18px; font-weight:bold; padding:15px; border-radius:12px; line-height:1.4;}
 </style>
 </head>
-
 <body>
-<div class="container">
-<h1>Pension Countdown</h1>
-
-<select id="profile"></select><br><br>
-<select id="target"></select>
-
-<div id="results"></div>
-</div>
+<header>⏱ Horst Ereignisse 2026</header>
+<div class="grid" id="grid"></div>
 
 <script>
+const colors=["#22c55e","#3b82f6","#f59e0b","#ef4444","#a855f7","#14b8a6"];
 
-const VACATION_PER_YEAR = 33
-
-const profiles={
-horst:{
-birth:new Date("1966-12-18"),
-targets:["2029-01-01","2029-04-01","2030-01-01","2030-04-01","2032-01-01"]
-},
-silvia:{
-birth:new Date("1967-12-23"),
-targets:["2030-04-01","2030-06-01","2031-01-01","2032-01-01","2033-01-01"]
-}
-}
-
-const SILVIA_FIRST=new Date("2030-04-01")
-const HORST_FIRST=new Date("2029-01-01")
-
-let intervals=[]
-
-function clearIntervals(){
-intervals.forEach(i=>clearInterval(i))
-intervals=[]
+function getEmoji(name){
+if(name.includes("Oster")) return "🐣";
+if(name.includes("Live")) return "🎸";
+if(name.includes("Kur")) return "🧘";
+if(name.includes("Tennis")) return "🎾";
+if(name.includes("Hochzeit")) return "💍";
+if(name.includes("Italien")) return "🇮🇹";
+if(name.includes("Rhodos")) return "🌴";
+if(name.includes("Fest")) return "🎉";
+if(name.includes("60er")) return "🎂";
+if(name.includes("Pension")) return "🌅";
+return "📅";
 }
 
-function formatTime(sec){
-sec=Math.max(0,sec)
-let s=sec%60
-let m=Math.floor(sec/60)%60
-let h=Math.floor(sec/3600)%24
-let d=Math.floor(sec/86400)
-let y=Math.floor(d/365); d%=365
-return y+" Jahre "+d+" Tage "+h+" Stunden "+m+" Minuten "+s+" Sekunden"
+let events=[
+{name:"Kinder Osterfeier",date:"2026-04-05T10:00:00"},
+{name:"Familie Osterjause",date:"2026-04-05T15:00:00"},
+{name:"Ostwärts Live",date:"2026-04-18T20:00:00"},
+{name:"Silvia Kur",date:"2026-04-19T10:00:00"},
+{name:"Tenniscamp Umag",date:"2026-04-29T16:00:00"},
+{name:"Hochzeit Albanien",date:"2026-06-11T00:00:00"},
+{name:"Urlaub Italien",date:"2026-07-13T00:00:00"},
+{name:"Fest SC Piesting",date:"2026-09-05T09:00:00"},
+{name:"Urlaub Rhodos",date:"2026-09-13T04:50:00"},
+{name:"🎂 Horst 60er",date:"2026-12-18T00:00:00"},
+{name:"🌅 Horst frühester Pensionsantritt",date:"2029-01-01T00:00:00"}
+];
+
+const grid=document.getElementById("grid");
+
+function formatDate(dateStr){
+return new Date(dateStr).toLocaleString("de-AT");
 }
 
-function calculateAgeDetailed(birth, target){
-let years = target.getFullYear() - birth.getFullYear()
-let months = target.getMonth() - birth.getMonth()
-if(target.getDate() < birth.getDate()) months--
-if(months < 0){ years--; months += 12 }
-return {years, months}
+function sortEvents(){
+events.sort((a,b)=>new Date(a.date)-new Date(b.date));
 }
 
-function holidays(y){
-return [
-y+"-01-01",y+"-01-06",y+"-05-01",
-y+"-08-15",y+"-10-26",y+"-11-01",
-y+"-12-08",y+"-12-25",y+"-12-26"
-]
-}
+function render(){
+grid.innerHTML="";
+sortEvents();
 
-function isHoliday(d){
-return holidays(d.getFullYear()).includes(d.toISOString().split("T")[0])
-}
+events.forEach((event,i)=>{
+const color=colors[i%colors.length];
+const div=document.createElement("div");
+div.className="card";
+div.id="card"+i;
 
-function workdays(now,end){
-let d=new Date(now)
-let total=0, weekend=0, holiday=0
+if(event.name.includes("60er")) div.classList.add("birthday");
+if(event.name.includes("Pension")) div.classList.add("pension");
 
-while(d<end){
-let day=d.getDay()
-if(day===0||day===6) weekend++
-else if(isHoliday(d)) holiday++
-total++
-d.setDate(d.getDate()+1)
-}
+const emoji=getEmoji(event.name);
 
-let years = total / 365
-let vacation = Math.floor(years * VACATION_PER_YEAR)
+div.innerHTML=`
+<div class="emoji">${emoji}</div>
+<div class="title">${event.name}</div>
+<div class="datetime">${formatDate(event.date)}</div>
+<div class="digital" id="digital${i}" style="background:${color}"></div>
+`;
 
-let work = total - weekend - holiday - vacation
-if(work < 0) work = 0
-
-return {w: work, we: Math.floor(weekend/2), h: holiday, vac: vacation}
+grid.appendChild(div);
+});
 }
 
 function update(){
+const now=new Date();
 
-clearIntervals()
+events.forEach((event,i)=>{
+const target=new Date(event.date);
+let diff=target-now;
 
-let pKey=document.getElementById("profile").value
-let p=profiles[pKey]
-let i=document.getElementById("target").value||0
+const digital=document.getElementById("digital"+i);
+const card=document.getElementById("card"+i);
 
-let end=new Date(p.targets[i])
-let now=new Date()
+card.classList.remove("next","warning");
 
-let ws=workdays(now,end)
-let age = calculateAgeDetailed(p.birth, end)
-
-let ref=(pKey==="horst")?SILVIA_FIRST:HORST_FIRST
-let refText=(pKey==="horst")?"Unterschied zu Silvia":"Unterschied zu Horst"
-
-document.getElementById("results").innerHTML=
-"<div class='card'>"+
-"<h3>Pension "+end.toLocaleDateString("de-AT")+"</h3>"+
-"<div class='box'>Alter bei Pension<br>"+age.years+" Jahre "+age.months+" Monate</div>"+
-
-"<div class='workcounter'>Arbeitszeit Countdown</div><div id='work' class='workcounter'></div>"+
-"<div class='realcounter'>Zeit bis Pension</div><div id='real' class='realcounter'></div>"+
-
-"<div class='grid'>"+
-"<div class='box'>Wochenenden<br>"+ws.we+"</div>"+
-"<div class='box'>Feiertage<br>"+ws.h+"</div>"+
-"<div class='box'>Urlaubstage<br>"+ws.vac+"</div>"+
-"<div class='box diff'>"+refText+"<br>"+formatTime(Math.abs(end-ref)/1000)+"</div>"+
-"</div></div>"
-
-let workSec=ws.w*86400
-
-intervals.push(setInterval(()=>{
-workSec--
-document.getElementById("work").innerHTML=formatTime(workSec)
-},1000))
-
-intervals.push(setInterval(()=>{
-let s=Math.floor((end-new Date())/1000)
-document.getElementById("real").innerHTML=formatTime(s)
-},1000))
+if(diff<=0){
+digital.innerHTML="🎉 Jetzt feiern!";
+return;
 }
 
-function init(){
+let seconds=Math.floor(diff/1000);
 
-let pSel=document.getElementById("profile")
-let tSel=document.getElementById("target")
+let months=Math.floor(seconds/(60*60*24*30));
+seconds-=months*(60*60*24*30);
 
-Object.keys(profiles).forEach(k=>{
-let o=document.createElement("option")
-o.value=k
-o.textContent=k.charAt(0).toUpperCase()+k.slice(1)
-pSel.appendChild(o)
-})
+// 👉 NEU: Monate → Jahre umrechnen
+let years=Math.floor(months/12);
+months = months % 12;
 
-pSel.value="horst"
+let weeks=Math.floor(seconds/(60*60*24*7));
+seconds-=weeks*(60*60*24*7);
 
-function loadTargets(){
-tSel.innerHTML=""
-profiles[pSel.value].targets.forEach((t,i)=>{
-let o=document.createElement("option")
-o.value=i
-o.textContent=new Date(t).toLocaleDateString("de-AT")
-tSel.appendChild(o)
-})
+let days=Math.floor(seconds/(60*60*24));
+seconds-=days*(60*60*24);
+
+let hours=Math.floor(seconds/(60*60));
+seconds-=hours*(60*60);
+
+let minutes=Math.floor(seconds/60);
+seconds-=minutes*60;
+
+let parts=[];
+if(years>0) parts.push(years+" J");
+if(months>0) parts.push(months+" Mo");
+if(weeks>0) parts.push(weeks+" Wo");
+if(days>0) parts.push(days+" T");
+if(hours>0) parts.push(hours+" h");
+if(minutes>0) parts.push(minutes+" m");
+if(seconds>0) parts.push(seconds+" s");
+
+if(parts.length===0) parts.push("0 s");
+
+digital.innerHTML=parts.join(" • ");
+
+if(i===0){card.classList.add("next");}
+if(diff<1000*60*60*24){card.classList.add("warning");}
+
+const key="notified_"+event.name;
+if(diff<1000*60*60*24 && !localStorage.getItem(key)){
+if(Notification.permission==="granted"){
+new Notification("🔔 Erinnerung",{body:event.name+" ist bald!"});
+}
+localStorage.setItem(key,"yes");
 }
 
-pSel.onchange=()=>{loadTargets();update()}
-tSel.onchange=update
-
-loadTargets()
-update()
+});
 }
 
-init()
+if("Notification" in window){
+Notification.requestPermission();
+}
 
+render();
+setInterval(update,1000);
+update();
+
+if('serviceWorker' in navigator){
+navigator.serviceWorker.register('sw.js');
+}
 </script>
-
 </body>
 </html>
