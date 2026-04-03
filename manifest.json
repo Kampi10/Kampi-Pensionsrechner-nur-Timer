@@ -1,7 +1,8 @@
 {
-"name":"Pension Countdown",
-"short_name":"Pension",
-"display":"standalone",
-"background_color":"#020617",
-"theme_color":"#020617"
+  "name": "Horst Ereignisse",
+  "short_name": "Horst",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a"
 }
